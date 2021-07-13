@@ -159,4 +159,61 @@ Navigation away from a site that did not set a CaptureHandle is not detectable b
 
 # Privacy + Security Considerations
 
-Please refer to [the explainer ](https://docs.google.com/document/d/1oSDmBPYVlxFJxb7ZB_rV6yaAaYIBFDphbkx5bXLnzFg/edit?usp=sharing).
+## Opt-In
+By default, nothing is revealed.
+
+## User-driven
+The process is still user-driven, as [getDisplayMedia](https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getDisplayMedia) itself is user-driven - the user chooses what to share, as well as whether to share.
+
+## Theoretically No-op
+When users consent to a capture, they implicitly allow the capturing-app to receive any information that the captured-app wishes broadcast. Such information could be broadcast by embedding “magic pixels” in the captured-app, embedding QR codes in the video stream, etc.
+
+The change described in this document is almost a no-op from the perspective of security and privacy. The word “almost” is necessary because previously the capturing-app would have to either take that information with a grain of salt, or validate it externally, e.g. by establishing contact with the collaborating app over some external medium. Now, at least one piece of information is mediated by the browser and therefore known to be non-spoofable - the origin.
+
+## Captured-App Still Cannot Discover it is Being Captured
+This change does not allow a captured application to discover when it is being captured, unless the capturing application sends it an out-of-band message to that effect. This would have been possible regardless of the change described in this document, and is therefore not a concern.
+
+**Note:** The general concern with capturing applications discovering they’re being captured is that they could use that fact in order to censor their own content, limiting the user’s control and aggravating them. This concern does not apply to capturers who choose to inform the captured application of the capture. Such applications could either stop informing the captured application, after all. And the user is at the mercy of the capturing application to begin with, which could have chosen to never even start the capture.
+
+## Controlled Exposure
+One concern is that a capturer could misbehave when capturing specific origins. For example, when a VC application detects the user is capturing a competitor’s productivity suite, it could display ads for its own productivity suite. This concern is mitigated through the CaptureHandleConfig’s permittedOrigins field, which allows applications to control which origins may observe the CaptureHandle they set.
+
+## App-controlled Opaqueness
+Applications can use any CaptureHandle.handle they wish, and may also independently choose whether to expose their origin. The handle can either expose information according to some advertised format, or it can be completely opaque to anyone but a few privileged, collaborating apps.
+
+For example, HypotheticalSite could make it widely known that their format is “HypotheticalSite:<rand_guid>”. This could then be used in tandem with some other API exposed by HypotheticalSite, such as an API for remotely controlling a playback (subject to access-control set by HypotheticalSite on their own API).
+
+Continuing with the example above, it would also be possible for HypotheticalSite to set their format to <rand_guid>, with rand_guid as a 32-character hexadecimal string, and set exposeOrigin=false. It would then be difficult for arbitrary capturers to find out if they’re capturing a HypotheticalSite tab, since many different applications could follow that handle pattern. However, HypotheticalSite could give select collaborating applications access to a HypotheticalSite-operated API that checks whether a given GUID is a valid HypotheticalSite ID.
+
+## Non-spoofable Origin
+If the captured-application opts into exposing its origin, the capturing application gains access to a field that is non-spoofable. Claims made in the capture-handle can be trusted by the capturer if they are known to originate from a given origin. If an application chooses to share a handle but not the origin, on the contrary, the capturing application can either treat that information as suspect, or verify it in some external way before using it.
+
+## Improvements over Steganography
+As previously mentioned, applications could have previously used QR codes or [steganographic means](https://en.wikipedia.org/wiki/Steganography) to advertise some capture-handle. However, that would have been susceptible to interference from embedded frames, either intentionally or not. The capture handle mechanism, in contrast, is only accessible to the top-level document, and is safe from interference.
+
+## Capturer Can Detect Navigation
+* Assume EXP is a site exposing something - possibly the origin, possibly a handle, possibly both. When we want to denote two sites exposing different configs, we’ll name them EXP1 and EXP2. 
+* Assume sites NOEXP, NOEXP1, NOEXP2, etc. never call setCaptureHandleConfig. (Recall that this is treated as implicitly calling setCaptureHandleConfig with the empty config.)
+
+We distinguish these types navigation events:
+1. NOEXP to EXP: Non-exposing site to exposing site.
+2. EXP to NOEXP: Exposing site to non-exposing site.
+3. EXP1 to EXP2: One exposing site to another, different exposing site.
+4. EXP1 to EXP1*: One exposing site to another, but which sets the same configuration.
+5. NOEXP1 to NOEXP2: One non-exposing site to another non-exposing site.
+
+#1 partially reveals navigation. Depending on additional parameters, the capturer might have either full or partial certainty over whether navigation occurred, or whether EXP set a capture handle relatively late.
+
+#2 and #3 make navigation unconcealable by definition.
+
+#4 is similar to #2 in its first stage. Recall that when navigating away from EXP1 to EXP1*, the browser does not know if/when EXP1* will call setCaptureHandleConfig, and must treat navigation away from EXP1 as an implicit call to setCaptureHandleConfig with the empty config.
+
+#5 We don’t fire an event in this case (rationale). The result of this decision is that a capturer can detect navigation away from an exposing site, but not navigation away from a non-exposing site.
+
+## Excessive Events
+It is possible for a captured application to “bombard” its capturer with events by repeatedly calling setCaptureHandleConfig. Note that this is true regardless of whether the event fires only on a new config, or whenever setCaptureHandleConfig is called, since the application can alternately set two different handles. This concern does not seem significant, as:
+1. The captured application would be expending the same general amount of resources as it would be costing the capturing application. (Note that the case of multiple capturers is very rare in practice, and even then is limited to only a handful of capturers.)
+2. The captured application would normally be carrying out the attack without knowing whether it is being captured, let alone knowing by whom. (The case where the capturer communicated its identity back to the captured application presumes a level of collaboration that makes such an attack unlikely, and at any rate - within the power of the capturing application to avoid.)
+
+## Incognito Mode
+Calls to setCaptureHandleConfig from an incognito tab must not be blocked, so as to avoid exposing incognito-status to the application. However, we avoid propagating the actual CaptureHandle between the capturing app and the captured app.
