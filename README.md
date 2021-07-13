@@ -23,17 +23,18 @@ We wish to enable the legitimate use cases while keeping the general case as it 
 
 Consider two applications that wish to cooperate, for example a VC app and a presentation app. Assume the user is in a VC session. The user starts sharing a presentation. Both applications are interested in letting the VC app discover that it is capturing a slides session, which application, and even which session, so that the VC application will be able to expose controls to the user for flipping through slides. When the user clicks those controls, the VC app will be able to send messages to the presentation app (either through a service worker or through a shared back-end infrastructure). These messages will instruct the presentation app to flip through slides, enter/leave presentation-mode, etc.
 
-## Use-case #2: Analytics
+## Use-case #2: Avoiding “Hall of Mirrors”
 
-Capturing applications often wish to gather statistics over what applications their users tend to capture. For example, VC applications would like to know how often their users share presentation applications from specific providers, Wikipedia, CNN, etc. Gathering such information can be used to improve service for the users by introducing new collaborations, such as the one described above.
+The “Hall of Mirrors” effect occurs when users choose to share the tab in which the VC call takes place. When detecting self-capture, a VC application can avoid displaying the captured stream back to the user, thereby avoiding the dreaded effect. Other mitigation strategies are also possible based on Capture Handle.
 
 ## Use-case #3: Detecting Unintended or Unapproved Captures
 
 Users sometimes choose to share the wrong tab. Sometimes they switch to sharing the wrong tab by clicking the share-this-tab-insead button by mistake. A benevolent application could try to protect the user by presenting an in-app dialog for re-confirmation, if they believe that the user may have made a mistake.
 
-## Use-case #4: Avoiding “Hall of Mirrors”
+## Use-case #4: Analytics
 
-This use-case is a sub-case of #3, but deserves its own section due to its importance. The “Hall of Mirrors” effect occurs when users choose to share the tab in which the VC call takes place. When detecting self-capture, a VC application can avoid displaying the captured stream back to the user, thereby avoiding the dreaded effect.
+Capturing applications often wish to gather statistics over what applications their users tend to capture. For example, VC applications would like to know how often their users share presentation applications from specific providers, Wikipedia, CNN, etc. Gathering such information can be used to improve service for the users by introducing new collaborations, such as the one described above.
+
 
 # Our Solution
 
